@@ -1,0 +1,135 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><title>I Dropped a Neural Net | Ani Srikanth</title><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="Personal blog, essays, projects, and notes."><link rel=stylesheet href=/assets/css/style.css><script>window.MathJax={tex:{displayMath:[["\\[","\\]"],["$$","$$"]],inlineMath:[["\\(","\\)"]]},options:{enableMenu:!1,enableExplorer:!1,enableExplorerHelp:!1,enableEnrichment:!1,enableSpeech:!1,enableBraille:!1,skipHtmlTags:["script","noscript","style","textarea","pre","code"]}}</script><script id=MathJax-script async src=https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js></script></head><body><header><a class=title href=/posts/><h1>Arkved's Tower</h1></a><nav><p><a href=/>Home</a>
+<a href=/posts/>Arkved's Tower</a>
+<a href=/resume/>Resume</a></p></nav></header><main><article><h1>I Dropped a Neural Net</h1><p><time datetime=2026-05-08>May 8, 2026</time></p><p>Recently, I worked through my first Jane Street puzzle. Not one of their math puzzles on the main website (I still have trouble with those), but one of their ML puzzles on their Hugging Face repo. The current puzzle, as of this writing, is called <a href=https://huggingface.co/spaces/jane-street/droppedaneuralnet>&ldquo;I dropped a neural net&rdquo;</a>.</p><h1 id=the-puzzle>The puzzle</h1><p>Oh no! I dropped an extremely valuable trading model and it fell apart into linear layers! I need to rebuild it before anyone notices, but I can&rsquo;t remember how these pieces go together, or how it was trained.</p><p>All I have left are the pieces of the model and some historical data. Can you help me figure out how to put it back together?</p><p>Luckily I still have the source code of the layers that the neural network is made of. They look like this:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>Block</span>(nn<span style=color:#f92672>.</span>Module):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, in_dim: int, hidden_dim: int):
+</span></span><span style=display:flex><span>        super()<span style=color:#f92672>.</span><span style=color:#a6e22e>__init__</span>()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>inp <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>Linear(in_dim, hidden_dim)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>activation <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>ReLU()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>out <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>Linear(hidden_dim, in_dim)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>forward</span>(self, x):
+</span></span><span style=display:flex><span>        residual <span style=color:#f92672>=</span> x
+</span></span><span style=display:flex><span>        x <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>inp(x)
+</span></span><span style=display:flex><span>        x <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>activation(x)
+</span></span><span style=display:flex><span>        x <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>out(x)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> residual <span style=color:#f92672>+</span> x
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>LastLayer</span>(nn<span style=color:#f92672>.</span>Module):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>__init__</span>(self, in_dim: int, out_dim: int):
+</span></span><span style=display:flex><span>        super()<span style=color:#f92672>.</span><span style=color:#a6e22e>__init__</span>()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>layer <span style=color:#f92672>=</span> nn<span style=color:#f92672>.</span>Linear(in_dim, out_dim)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>forward</span>(self, x):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> self<span style=color:#f92672>.</span>layer(x)
+</span></span></code></pre></div><p>The solution to this puzzle is a permutation. For each index from <code>0</code> to <code>96</code>, you give the index of the piece that is applied in that position.</p><h1 id=summary>Summary</h1><p>To put it simply, the model has been shattered into \(97\) linear layer files, and we need to reconstruct the exact order of the original forward pass.</p><p>The answer to the puzzle is a permutation, but this is not a permutation puzzle in itself.</p><p>The problem is that there are \(97!\) ways to order the pieces, or roughly \(9.62 \times 10^{151}\) possible permutations. To put that into perspective, there are only about \(10^{80}\) atoms in the observable universe. If we had \(10^{80}\) supercomputers each computing a permutation at Planck time, which is \(\sim 10^{43}\) checks per second, it would still take us 30 quintillion years to get that permutation, which is over 2 billion times the current age of the universe.</p><p>Clearly, we need to look into the model architecture and find some clues. The good news is that the architecture leaks the model structure, and the historical data from the CSV file lets us check whether a proposed reconstruction behaves like the original model.</p><h1 id=step-1-understanding-the-model-architecture>Step 1: Understanding the model architecture</h1><p>Refer back to the code provided in the problem statement. Each <code>Block</code> is a residual block. The forward pass is:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>forward</span>(self, x):
+</span></span><span style=display:flex><span>    residual <span style=color:#f92672>=</span> x
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>inp(x)
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>activation(x)
+</span></span><span style=display:flex><span>    x <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>out(x)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> residual <span style=color:#f92672>+</span> x
+</span></span></code></pre></div><p>Mathematically, this is</p>\[
+x \to x + W_{\text{out}}\operatorname{ReLU}(W_{\text{in}}x + b_{\text{in}}) + b_{\text{out}}
+\]<p>In other words,</p>\[
+\text{new state} = \text{old state} + \text{learned correction}
+\]<p>The model keeps a current internal state \(x\). Each residual block then computes a correction to that state and adds it back. The skip connection is the \(x + \cdots\) part.</p><p>This matters because it constrains the shapes of the layers inside each block. If the model state has a dimension \(d\), then the block has</p>\[
+\operatorname{Linear}(d \to h)
+\;\to\;
+\operatorname{ReLU}
+\;\to\;
+\operatorname{Linear}(h \to d)
+\]<p>The first layer expands the state from dimension \(d\) to dimension \(h\). The second layer then compresses it back from \(h\) to \(d\), so that the correction can be added back to the original \(d\)-dimensional state.</p><p>This means that if we can infer \(d\) and \(h\), we can identify which files are the first half of a residual block and which files are the second half.</p><h1 id=step-2-inferring-the-dimensions>Step 2: Inferring the dimensions</h1><p>The historical CSV is useful even before doing any modeling, as it tells us the input dimension. The CSV contains feature columns of the form:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>measurement_0, measurement_1, ..., measurement_47
+</span></span></code></pre></div><p>It tells us that there are \(48\) input features, therefore the model input state is</p>\[
+x \in \mathbb{R}^{48}
+\]<p>The CSV also contains a <code>pred</code> column, which is the scalar output of the original model. So the final output dimension is \(1\). From the architecture, the final layer must be</p>\[
+\operatorname{Linear}(48 \to 1)
+\]<p>I then inspected the provided <code>.pth</code> files to find the tensor shapes. The weights came in three shapes:</p>\[
+(96,48), \quad (48,96), \quad (1,48)
+\]<p>We know that <code>nn.Linear(in_features, out_features)</code> stores its weight matrix with the shape <code>(out_features, in_features)</code>. So these shapes correspond to</p>\[
+(96,48) = \operatorname{Linear}(48 \to 96)
+\]\[
+(48,96) = \operatorname{Linear}(96 \to 48)
+\]\[
+(1,48) = \operatorname{Linear}(48 \to 1)
+\]<p>This tells us the exact architecture dimensions</p>\[
+\text{in\_dim}=48,\qquad \text{hidden\_dim}=96,\qquad \text{out\_dim}=1
+\]<p>So every residual block must be</p>\[
+\operatorname{Linear}(48 \to 96)
+\;\to\;
+\operatorname{ReLU}
+\;\to\;
+\operatorname{Linear}(96 \to 48)
+\;\to\;
+\text{residual add}
+\]<p>and the model ends with</p>\[
+\operatorname{Linear}(48 \to 1)
+\]<p>So this leaves us with the following:</p>\[
+48 \text{ layers with shape } (96,48) \to \text{ first half of residual blocks}
+\]\[
+48 \text{ layers with shape } (48,96) \to \text{ second half of residual blocks}
+\]\[
+1 \text{ layer with shape } (1,48) \to \text{ final prediction layer}
+\]<p>So now we know:</p><ol><li>Which piece is the final layer</li><li>Which \(48\) pieces are possible <code>W_in</code> layers</li><li>Which \(48\) pieces are possible <code>W_out</code> layers</li></ol><p>Now the next step is to pair each \(\operatorname{Linear}(48 \to 96)\) with its matching \(\operatorname{Linear}(96 \to 48)\) and order the residual blocks that we recover.</p><h1 id=step-3-pairing-the-two-halves-of-each-residual-block>Step 3: Pairing the two halves of each residual block</h1><p>The next step is to determine which <code>W_in</code> belong with each <code>W_out</code>. We know that each residual block contains two trained matrices</p>\[
+W_{\text{in}}: \mathbb{R}^{48} \to \mathbb{R}^{96}
+\]\[
+W_{\text{out}}: \mathbb{R}^{96} \to \mathbb{R}^{48}
+\]<p>In other words:</p>\[
+W_{\text{in}} \text{ has shape } (96,48)
+\]\[
+W_{\text{out}} \text{ has shape } (48,96)
+\]<p>Two matrices inside the same block were trained together, so they should have a detectable relationship. A random <code>W_in</code> from one block and a random <code>W_out</code> from another block should fit together less cleanly.</p><p>For each candidate pair, I looked at <code>W_out @ W_in</code>. The dimensions multiply out as follows:</p>\[
+(48 \times 96)(96 \times 48) = (48 \times 48)
+\]<p>Essentially we are asking, &ldquo;If two layers were chained together, what transformation would they apply?&rdquo; Now of course, this is not the exact residual block because the real block is</p>\[
+x + W_{\text{out}}\operatorname{ReLU}(W_{\text{in}}x + b_{\text{in}}) + b_{\text{out}}
+\]<p>The product <code>W_out @ W_in</code> ignores the ReLU and the biases. But it still approximates the linear part of the residual update.</p><p>For a correct pair, the product <code>W_out @ W_in</code> represents the approximate linear behavior of one coherent residual correction. For an incorrect pair, it combines the first half of one block with the second half of a different block. That product should be less structured.</p><p>Empirically, the correct pairs had a much stronger diagonal / structured pattern.</p><p><img src=https://i.ibb.co/60RpJm7c/9be0ba20-b282-46f1-ab72-c703b781e070.png alt="Correct pair heatmap"></p><p><img src=https://i.ibb.co/pBSPc4g0/53fe7292-ab70-4ddf-923f-b78c39500cab.png alt="Incorrect pair heatmap"></p><p>The correct pair is not a perfect identity matrix, but the diagonal signal is noticeably stronger. The incorrect pair is significantly noisier.</p><h2 id=why-do-we-care-about-the-diagonal-structure>Why do we care about the diagonal structure?</h2><p>The residual block takes a \(48\)-dimensional state and returns a \(48\)-dimensional correction that gets added back to that same state. So it is natural for the learned correction to preserve some coordinate-wise structure. A diagonal entry in <code>W_out @ W_in</code> measures how much input coordinate \(i\) contributes back to output coordinate \(i\) through the approximate linearized residual branch. So a stronger diagonal means that the coordinate \(i\) of the input tends to influence coordinate \(i\) of the residual correction.</p><p>Of course, the block can still have off-diagonal interactions, but correct pairs had much more coherent structure than mismatched pairs.</p><p>One simple score I used was</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>pair_score</span>(W_in, W_out):
+</span></span><span style=display:flex><span>    M <span style=color:#f92672>=</span> W_out <span style=color:#f92672>@</span> W_in
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    diag <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>diag(M)
+</span></span><span style=display:flex><span>    off_diag <span style=color:#f92672>=</span> M <span style=color:#f92672>-</span> np<span style=color:#f92672>.</span>diag(diag)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    diag_strength <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>sum(np<span style=color:#f92672>.</span>abs(diag))
+</span></span><span style=display:flex><span>    off_diag_strength <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>linalg<span style=color:#f92672>.</span>norm(off_diag)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> diag_strength <span style=color:#f92672>/</span> (off_diag_strength <span style=color:#f92672>+</span> <span style=color:#ae81ff>1e-12</span>)
+</span></span></code></pre></div><p>This score measures diagonal mass relative to off-diagonal mass.</p><p>I computed this score for every possible <code>W_in, W_out</code> pair. There are only \(48 \times 48 = 2304\) possible candidate pairs, so this step is actually computationally feasible.</p><p>Once every candidate pair has a score, we need a one-to-one matching. Each <code>W_in</code> should be paired with exactly one <code>W_out</code>, and each <code>W_out</code> should be used exactly once.</p><p>This is a bipartite assignment problem, so I used the Hungarian algorithm:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#f92672>from</span> scipy.optimize <span style=color:#f92672>import</span> linear_sum_assignment
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>rows, cols <span style=color:#f92672>=</span> linear_sum_assignment(<span style=color:#f92672>-</span>scores)
+</span></span></code></pre></div><p>The negative sign is because <code>linear_sum_assignment</code> solves a minimization problem by default, whereas I wanted to maximize the pairing score.</p><p>After this step, the 96 hidden pieces were recovered as 48 residual blocks.</p><p>So the problem has been reduced even further. We originally had 97 random files, and now we have 48 residual blocks and one final layer which is appended at the end. Now we have to order all of our residual blocks.</p><h1 id=step-4-ordering-the-recovered-residual-blocks>Step 4: Ordering the recovered residual blocks</h1><p>The final layer is known by its shape. The remaining problem is to determine the order of the 48 residual blocks.</p><p>Naively, this is still huge, as there are \(48!\) permutations for these residual blocks. However, this is where the CSV file provided is particularly useful.</p><p>The historical data can be used as a scoring function. For any candidate block order, I can reconstruct a full model</p>\[
+x_0 = \text{input row from CSV}
+\]\[
+x_{k+1} = x_k + W_{\text{out},k} \operatorname{ReLU}(W_{\text{in},k}x_k + b_{\text{in},k}) + b_{\text{out},k}
+\]\[
+\text{prediction} = W_{\text{final}}x_{48} + b_{\text{final}}
+\]<p>Then I compare that reconstructed prediction to the <code>pred</code> column from the CSV. The loss is mean squared error:</p><h1 id=operatornamemse>[
+\operatorname{MSE}</h1><h2 id=hatytextreconstructed_i>\frac{1}{n}
+\sum_i
+\left(
+\hat{y}^{\text{reconstructed}}_i</h2><p>y^{\text{original}}_i
+\right)^2
+]</p><p>The correct ordering should produce MSE equal to zero up to numerical precision.</p><h2 id=seeding-the-order-with-the-output-layer-norm>Seeding the order with the output-layer norm</h2><p>The heuristic that worked well was sorting blocks by the Frobenius norm of their output projection:</p>\[
+{\lVert W_{\text{out}} \rVert}_F
+\]<p>The Frobenius norm of a matrix is:</p><h1 id=lvert-w-rvert_f>[
+{\lVert W \rVert}_F</h1><p>\sqrt{\sum_i \sum_j W_{ij}^2}
+]</p><p>It is just a measure of the overall size of the matrix. For each recovered block, I computed</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span>score <span style=color:#f92672>=</span> np<span style=color:#f92672>.</span>linalg<span style=color:#f92672>.</span>norm(W_out)
+</span></span></code></pre></div><p>and sorted the blocks by that score. It turns out that this was surprisingly close to the true order.</p><p>My intuition was that residual networks are not arbitrary compositions of matrices. Each block is a learned perturbation added to the current state, and the scale of that perturbation changes across depth. The norm of <code>W_out</code> is not enough to prove the order, but it gives a very good seed.</p><p>This norm-based ordering is the step that makes the local search fairly simple. If the seed were random, adjacent swaps would not be enough. But if the seed is already almost correct, adjacent swaps can repair the remaining local inversions.</p><h1 id=step-5-finalizing-the-order-with-adjacent-swaps>Step 5: Finalizing the order with adjacent swaps</h1><p>After sorting by \({\lVert W_{\text{out}} \rVert}_F\), I ran an adjacent-swap local search.</p><p>The general procedure for the search is as follows:</p><ol><li>Start with the norm-sorted order</li><li>Compute the MSE against historical predictions</li><li>Try swapping neighboring blocks</li><li>Keep the swap if it improves MSE</li><li>Repeat until no adjacent swap improves the loss</li></ol><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>adjacent_swap_search</span>(order):
+</span></span><span style=display:flex><span>    best <span style=color:#f92672>=</span> loss(order)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>while</span> <span style=color:#66d9ef>True</span>:
+</span></span><span style=display:flex><span>        improved <span style=color:#f92672>=</span> <span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(len(order) <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>):
+</span></span><span style=display:flex><span>            candidate <span style=color:#f92672>=</span> order<span style=color:#f92672>.</span>copy()
+</span></span><span style=display:flex><span>            candidate[i], candidate[i <span style=color:#f92672>+</span> <span style=color:#ae81ff>1</span>] <span style=color:#f92672>=</span> candidate[i <span style=color:#f92672>+</span> <span style=color:#ae81ff>1</span>], candidate[i]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            candidate_loss <span style=color:#f92672>=</span> loss(candidate)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> candidate_loss <span style=color:#f92672>&lt;</span> best:
+</span></span><span style=display:flex><span>                order <span style=color:#f92672>=</span> candidate
+</span></span><span style=display:flex><span>                best <span style=color:#f92672>=</span> candidate_loss
+</span></span><span style=display:flex><span>                improved <span style=color:#f92672>=</span> <span style=color:#66d9ef>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> improved:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>break</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> order, best
+</span></span></code></pre></div><p>This is somewhat like bubble sort, except the comparison is not about checking if the number at index \(i\) is greater than the number at index \(i+1\). Instead, the comparison it is making is checking whether swapping two neighboring residual blocks makes the reconstructed model closer to the original model.</p><p>The MSE curve looked like this:</p><p><img src=https://i.ibb.co/7tFNNLRz/35362e91-31b2-45ed-b164-2fc7e44a809c.png alt="MSE during adjacent-swap refinement"></p><p>Most accepted swaps gradually reduce the error. Then near the end, there is a huge drop.</p><p>That final drop is the interesting part. It means the model was already almost structurally correct, but one critical local inversion was still wrong. Because residual blocks are applied sequentially, an ordering mistake changes the internal state, and all later blocks operate on that changed state. Once the last important local inversion was fixed, the entire forward pass lined up with the original model and the error collapsed to numerical precision.</p><p>The final MSE was <code>3.369516376528804e-14</code>.</p><h1 id=step-6-validation>Step 6: Validation</h1><p>To validate my findings, I compared the original predictions to the reconstructed predictions.</p><p><img src=https://i.ibb.co/jdTpN8k/868b54f4-e09a-4329-98d9-616c865dfa2f.png alt="Provided vs reconstructed predictions"></p><p>If the model were reconstructed incorrectly, the points would drift away from the diagonal. Instead, they lie pretty much exactly on the identity line. Thus, I can conclude that the model has been reconstructed.</p><h1 id=step-7-getting-the-final-permutation>Step 7: Getting the final permutation</h1><p>As stated previously, each residual block has two piece indices. The first is an expand piece and the second is a compress piece. So I walked through the recovered block order and emitted:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-text data-lang=text><span style=display:flex><span>expand_1, compress_1, expand_2, compress_2, ..., expand_48, compress_48
+</span></span></code></pre></div><p>Then I appended the final \(\operatorname{Linear}(48 \to 1)\) layer to the end of the list, and I had my finalized permutation. I submitted my comma-separated permutation to the repo, and was met with the following message.</p><p><img src=https://i.ibb.co/V8tHdkD/Screenshot-2026-05-08-173418.png alt="Success message"></p><h1 id=final-thoughts>Final thoughts</h1><p>What I liked about this puzzle is that the model is broken, but not in a way that destroys all information. The CSV reveals the input and output dimensions. The tensor shapes reveal the roles of the layers. The matrix products reveal which halves were trained together. The historical predictions reveal whether the ordering is correct.</p><p>I ended up submitting my solution via the form they attached, and I also emailed my solution to <a href=mailto:archaeology@janestreet.com>archaeology@janestreet.com</a>. I can finally say that I solved a Jane Street puzzle.</p></article></main><footer><p>© 2026 Ani Srikanth</p></footer></body></html>
